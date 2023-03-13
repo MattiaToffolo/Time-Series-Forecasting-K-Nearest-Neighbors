@@ -44,7 +44,7 @@ class tsfknn():
         pred_sd = pred_sd_scaled*(np.amax(query) - np.amin(query))
         return pred_m, pred_sd, IXS
         
-mydata = pd.read_csv(r'C:\\Users\\Luciana\\Desktop\\TESI MAGISTRALE\\Prova su python + dataset\\TEZNY.csv')
+mydata = pd.read_csv(r'C:\\Users\\...\\TEZNY.csv')
 adj_price=mydata.loc[:,"Adj Close"]
 stream = np.array(adj_price).flatten()
 t=756

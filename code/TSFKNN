@@ -1,0 +1,195 @@
+import pandas as pd
+import numpy as np
+from matplotlib import pyplot as plt
+
+class tsfknn():
+    def __init__(self, data, k, t, p, h):
+        self.data=data
+        self.k=k
+        self.t=t
+        self.p=p
+        self.h=h
+    def predict(self):
+        new_stream = self.data[-self.t:]
+        s = new_stream.copy()
+        query = new_stream[-self.p:]
+        IXS = np.zeros(self.k, dtype=object)
+        IXS_min = np.zeros(self.k, dtype=object)
+        IXS_max = np.zeros(self.k, dtype=object)
+        query_scaled = (query - np.amin(query)) / (np.amax(query) - np.amin(query))
+        count = 0
+        while count < self.k:
+            d_min = float("inf")
+            for i in np.arange(1, self.t - self.p - self.h + 1):
+                subseq = s[i:(i + self.p)]
+                subseq_scaled = (subseq - np.amin(subseq)) / (np.amax(subseq) - np.amin(subseq))
+                dist = np.linalg.norm(subseq_scaled - query_scaled)
+                if dist < d_min:
+                    d_min = dist
+                    IXS[count] = i - 1
+                    IXS_min[count] = np.amin(subseq)
+                    IXS_max[count] = np.amax(subseq)
+            s[IXS[count]:(IXS[count] + self.p)] = float("inf")
+            count += 1
+        IXS = IXS[IXS > 0]
+        futuri = np.empty((self.k, self.h))
+        futuri_scaled = np.empty((self.k, self.h))
+        for j in np.arange(0, len(IXS)):
+            futuri[j, :] = new_stream[np.arange(IXS[j] + self.p + 1, IXS[j] + self.p + self.h + 1)]
+            futuri_scaled[j, :] = (futuri[j, :] - IXS_min[j]) / (IXS_max[j] - IXS_min[j])
+        pred_m_scaled = futuri_scaled.mean(axis=0)
+        pred_m = np.amin(query) + pred_m_scaled * (np.amax(query) - np.amin(query))
+        if futuri_scaled.shape[0] > 0:
+            pred_sd_scaled = futuri_scaled.std(axis=0)
+        pred_sd = pred_sd_scaled*(np.amax(query) - np.amin(query))
+        return pred_m, pred_sd, IXS
+        
+mydata = pd.read_csv(r'C:\\Users\\Luciana\\Desktop\\TESI MAGISTRALE\\Prova su python + dataset\\TEZNY.csv')
+adj_price=mydata.loc[:,"Adj Close"]
+stream = np.array(adj_price).flatten()
+t=756
+h=21
+test=stream[-20:]
+validation=stream[len(stream)-len(test)-21:len(stream)-len(test)]
+training=stream[0:len(stream)-len(test)-len(validation)]
+data=mydata.loc[:,"Date"]
+date_time = mydata.loc[:,"Date"]
+date_time = pd.to_datetime(date_time)
+data = mydata.loc[:,"Adj Close"]
+DF = pd.DataFrame()
+DF['value'] = data
+DF = DF.set_index(date_time)
+plt.plot(DF, color="black")
+plt.gcf().autofmt_xdate()
+plt.xlabel('Date')
+plt.ylabel('Adj Close')
+plt.show()
+par1=[3, 10]
+prova1=tsfknn(training, par1[0], t, par1[1], h)
+err1=sum((prova1.predict()[0]-validation)**2)/len(validation)
+par2=[5, 10]
+prova2=tsfknn(training, par2[0], t, par2[1], h)
+err2=sum((prova2.predict()[0]-validation)**2)/len(validation)
+par3=[7,10]
+prova3=tsfknn(training, par3[0], t, par3[1], h)
+err3=sum((prova3.predict()[0]-validation)**2)/len(validation)
+par4=[3,21]
+prova4=tsfknn(training, par4[0], t, par4[1], h)
+err4=sum((prova4.predict()[0]-validation)**2)/len(validation)
+par5=[5,21]
+prova5=tsfknn(training, par5[0], t, par5[1], h)
+err5=sum((prova5.predict()[0]-validation)**2)/len(validation)
+par6=[7,21]
+prova6=tsfknn(training, par6[0], t, par6[1], h)
+err6=sum((prova6.predict()[0]-validation)**2)/len(validation)
+par7=[3, 42]
+prova7=tsfknn(training, par7[0], t, par7[1], h)
+err7=sum((prova7.predict()[0]-validation)**2)/len(validation)
+par8=[5, 42]
+prova8=tsfknn(training, par8[0], t, par8[1], h)
+err8=sum((prova8.predict()[0]-validation)**2)/len(validation)
+par9=[7, 42]
+prova9=tsfknn(training, par9[0], t, par9[1], h)
+err9=sum((prova9.predict()[0]-validation)**2)/len(validation)
+par10=[3, 63]
+prova10=tsfknn(training, par10[0], t, par10[1], h)
+err10=sum((prova10.predict()[0]-validation)**2)/len(validation)
+par11=[5, 63]
+prova11=tsfknn(training, par11[0], t, par11[1], h)
+err11=sum((prova11.predict()[0]-validation)**2)/len(validation)
+par12=[7, 63]
+prova12=tsfknn(training, par12[0], t, par12[1], h)
+err12=sum((prova12.predict()[0]-validation)**2)/len(validation)
+data = {'Configurazione': [par1, par2, par3, par4, par5, par6, par7, par8, par9, par10, par11, par12], 'Errore': [err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12]}
+df = pd.DataFrame(data)
+print(df)
+mydata = np.concatenate((training, validation))
+h=len(test)
+alg1=tsfknn(mydata, par1[0], t, par1[1], h)
+alg2=tsfknn(mydata, par2[0], t, par2[1], h)
+alg3=tsfknn(mydata, par3[0], t, par3[1], h)
+alg4=tsfknn(mydata, par4[0], t, par4[1], h)
+alg5=tsfknn(mydata, par5[0], t, par5[1], h)
+alg6=tsfknn(mydata, par6[0], t, par6[1], h)
+alg10=tsfknn(mydata, par10[0], t, par10[1], h)
+alg11=tsfknn(mydata, par11[0], t, par11[1], h)
+prev_1st=np.array([alg1.predict()[0], alg2.predict()[0],alg3.predict()[0],alg4.predict()[0],alg5.predict()[0], alg6.predict()[0], alg10.predict()[0], alg11.predict()[0]])
+final_pred_1st=prev_1st.mean(axis=0)
+final_sd_1st=prev_1st.std(axis=0)
+err=sum((final_pred_1st-test)**2)/len(test)
+print(err)
+plt.plot(np.arange(1,h+1), final_pred_1st, color='green')
+plt.plot(np.arange(1,h+1), final_pred_1st+final_sd_1st, color='red')
+plt.plot(np.arange(1,h+1), final_pred_1st-final_sd_1st, color='red')
+plt.plot(np.arange(1,h+1), test, color='black')
+plt.xlabel('h')
+plt.ylabel('Adj Close')
+plt.show()
+h=len(test)
+alg1=tsfknn(mydata, par1[0], t, par1[1], h)
+alg2=tsfknn(mydata, par2[0], t, par2[1], h)
+alg3=tsfknn(mydata, par3[0], t, par3[1], h)
+alg4=tsfknn(mydata, par4[0], t, par4[1], h)
+alg5=tsfknn(mydata, par5[0], t, par5[1], h)
+alg6=tsfknn(mydata, par6[0], t, par6[1], h)
+alg7=tsfknn(mydata, par7[0], t, par7[1], h)
+alg8=tsfknn(mydata, par8[0], t, par8[1], h)
+alg9=tsfknn(mydata, par9[0], t, par9[1], h)
+alg10=tsfknn(mydata, par10[0], t, par10[1], h)
+alg11=tsfknn(mydata, par11[0], t, par11[1], h)
+alg12=tsfknn(mydata, par12[0], t, par12[1], h)
+prev=np.array([alg1.predict()[0], alg2.predict()[0],alg3.predict()[0],alg4.predict()[0],alg5.predict()[0], alg6.predict()[0], alg7.predict()[0], alg8.predict()[0], alg9.predict()[0], alg10.predict()[0], alg11.predict()[0], alg12.predict()[0]])
+final_pred=prev.mean(axis=0)
+final_sd=prev.std(axis=0)
+print(test)
+print(final_pred)
+print(final_pred)
+err=sum((final_pred-test)**2)/len(test)
+print(err)
+
+plt.plot(np.arange(1,h+1), final_pred, color='green')
+plt.plot(np.arange(1,h+1), final_pred+final_sd, color='red')
+plt.plot(np.arange(1,h+1), final_pred-final_sd, color='red')
+plt.plot(np.arange(1,h+1), test, color='black')
+plt.xlabel('h')
+plt.ylabel('Adj Close')
+plt.show()
+plt.scatter(final_sd, final_pred, color='black')
+for i, txt in enumerate(np.arange(h)+1):
+    plt.annotate(txt, (final_sd[i]+0.009, final_pred[i]+0.009),)
+plt.title('Scatter plot')
+plt.xlabel('Deviazione standard')
+plt.ylabel('Rendimento atteso')
+plt.show()
+prev_adj=np.array([alg2.predict()[0],alg4.predict()[0],alg5.predict()[0], alg6.predict()[0], alg7.predict()[0], alg8.predict()[0], alg9.predict()[0]])
+final_pred_adj=prev_adj.mean(axis=0)
+final_sd_adj=prev_adj.std(axis=0)
+mydata = np.concatenate((mydata, test[:7]))
+test=test[7:]
+h=len(test)
+alg2_a=tsfknn(mydata, par2[0], t, par2[1], h)
+alg4_a=tsfknn(mydata, par4[0], t, par4[1], h)
+alg5_a=tsfknn(mydata, par5[0], t, par5[1], h)
+alg6_a=tsfknn(mydata, par6[0], t, par6[1], h)
+alg7_a=tsfknn(mydata, par7[0], t, par7[1], h)
+alg8_a=tsfknn(mydata, par8[0], t, par8[1], h)
+alg9_a=tsfknn(mydata, par9[0], t, par9[1], h)
+prev_adj2=np.array([alg2_a.predict()[0],alg4_a.predict()[0],alg5_a.predict()[0], alg6_a.predict()[0], alg7_a.predict()[0], alg8_a.predict()[0], alg9_a.predict()[0]])
+final_pred_adj2=prev_adj2.mean(axis=0)
+final_sd_adj2=prev_adj2.std(axis=0)
+err_adj=sum((final_pred_adj2-test)**2)/len(test)
+print(err_adj)
+plt.plot(np.arange(8,h+8), final_pred_adj2, color='green')
+plt.plot(np.arange(8,h+8), final_pred_adj2+final_sd_adj2, color='red')
+plt.plot(np.arange(8,h+8), final_pred_adj2-final_sd_adj2, color='red')
+plt.plot(np.arange(8,h+8), test, color='black')
+plt.xlabel('h')
+plt.ylabel('Adj Close')
+plt.show()
+plt.scatter(final_sd_adj2, final_pred_adj2, color='black')
+for i, txt in enumerate(np.arange(h)+8):
+    plt.annotate(txt, (final_sd_adj2[i]+0.009, final_pred_adj2[i]+0.009),)
+plt.title('Scatter plot')
+plt.xlabel('Deviazione standard')
+plt.ylabel('Rendimento atteso')
+plt.show()

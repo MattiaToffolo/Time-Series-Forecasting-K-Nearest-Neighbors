@@ -5,13 +5,13 @@
 An investor holding a stock needs to answer one question: *when is the right moment to sell?*
 Selling too early means leaving money on the table. Selling too late means losing gains already accumulated.
 
-This project builds a tool to answer that question. By learning from the historical behaviour of a stock price, it forecasts the next 20 trading days and identifies which specific days offer the best return relative to the uncertainty of the prediction. The output is not just a forecast line — it is a ranked list of efficient sell moments, tailored to how much risk the investor is willing to accept.
+This project builds a tool to answer that question. By learning from the historical behaviour of a stock price, it forecasts the next 20 trading days and identifies which specific days offer the best return relative to the uncertainty of the prediction. The output is not just a forecast line, it is a ranked list of efficient sell moments, tailored to how much risk the investor is willing to accept.
 
 ## How It Works
 
 The algorithm is called **TSFKNN** (Time Series Forecasting K-Nearest Neighbours) and is implemented entirely from scratch in Python, with no dependency on existing TSFKNN libraries.
 
-The core idea is that financial markets tend to repeat patterns. Given the most recent price sequence of length `p` (the *query*), the algorithm scans the historical record and finds the `k` past periods that look most similar to today, using Euclidean distance on min-max scaled subsequences. For each match, the algorithm already knows what happened next — because that future is now part of the past. These candidate futures are then aggregated via ensemble learning to produce:
+The core idea is that financial markets tend to repeat patterns. Given the most recent price sequence of length `p` (the *query*), the algorithm scans the historical record and finds the `k` past periods that look most similar to today, using Euclidean distance on min-max scaled subsequences. For each match, the algorithm already knows what happened next, because that future is now part of the past. These candidate futures are then aggregated via ensemble learning to produce:
 
 - a **point forecast** (expected price) for each of the next `h` days
 - an **uncertainty band** (standard deviation) around each forecast

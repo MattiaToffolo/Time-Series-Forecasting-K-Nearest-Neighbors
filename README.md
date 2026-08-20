@@ -1,76 +1,81 @@
 # The KNN Algorithm for Financial Time Series: a New Python Implementation
 
-## Overview
+## What This Project Does
 
-This project presents a custom Python implementation of the **Time Series Forecasting K-Nearest Neighbours (TSFKNN)** algorithm, built from scratch as a Master's dissertation at the University of Milano-Bicocca. The algorithm is applied to forecast the adjusted closing price of the **TEZNY** stock (Terna S.p.A.) and to support investment decision-making through Pareto-optimal sell timing.
+An investor holding a stock needs to answer one question: *when is the right moment to sell?*
+Selling too early means leaving money on the table. Selling too late means losing gains already accumulated.
 
-## Problem Statement
+This project builds a tool to answer that question. By learning from the historical behaviour of a stock price, it forecasts the next 20 trading days and identifies which specific days offer the best return relative to the uncertainty of the prediction. The output is not just a forecast line — it is a ranked list of efficient sell moments, tailored to how much risk the investor is willing to accept.
 
-Predicting future stock prices is a well-known challenge in quantitative finance. This project addresses the forecasting problem by assuming that historical patterns tend to repeat — leveraging the KNN paradigm adapted to time series data. The algorithm does not rely on any existing TSFKNN library: the entire procedure is implemented from scratch in Python.
+## How It Works
 
-## Algorithm: TSFKNN
+The algorithm is called **TSFKNN** (Time Series Forecasting K-Nearest Neighbours) and is implemented entirely from scratch in Python, with no dependency on existing TSFKNN libraries.
 
-The **TSFKNN** (Time Series Forecasting K-Nearest Neighbours) works as follows:
+The core idea is that financial markets tend to repeat patterns. Given the most recent price sequence of length `p` (the *query*), the algorithm scans the historical record and finds the `k` past periods that look most similar to today, using Euclidean distance on min-max scaled subsequences. For each match, the algorithm already knows what happened next — because that future is now part of the past. These candidate futures are then aggregated via ensemble learning to produce:
 
-1. Extract the most recent subsequence of length `p` from the time series (the *query*).
-2. Scan the historical window and find the `k` subsequences most similar to the query, using **Euclidean distance** on **min-max scaled** subsequences.
-3. For each matching subsequence, retrieve the `h` contiguous values that follow it (*candidate futures*).
-4. Aggregate the candidate futures to produce a point forecast (mean) and an uncertainty estimate (standard deviation).
+- a **point forecast** (expected price) for each of the next `h` days
+- an **uncertainty band** (standard deviation) around each forecast
 
 Key parameters:
 
-| Parameter | Description |
-|-----------|-------------|
-| `k` | Number of nearest neighbours |
-| `p` | Length of the query subsequence |
-| `h` | Forecast horizon |
-| `t` | Length of the training window |
+| Parameter | Meaning |
+|-----------|---------|
+| `k` | Number of similar past patterns to retrieve |
+| `p` | Length of the comparison window (how much history to match) |
+| `h` | Forecast horizon in trading days |
+| `t` | Total historical window used for search |
 
 ## Data
 
-- **Source**: [Yahoo Finance](https://finance.yahoo.com/)
-- **Stock**: TEZNY — Terna S.p.A., Italian electricity transmission grid operator
-- **Period**: August 3, 2012 – January 31, 2023 (daily frequency)
-- **Target variable**: Adjusted Close price (accounts for dividends and non-trading distortions)
-- **Format**: CSV — 2,641 rows × 7 columns (`Date`, `Open`, `High`, `Low`, `Close`, `Adj Close`, `Volume`)
+- **Source**: Yahoo Finance
+- **Stock**: TEZNY (Terna S.p.A., Italian electricity transmission operator)
+- **Period**: August 3, 2012 to January 31, 2023, daily frequency
+- **Target variable**: Adjusted Close price, which corrects for dividends and other non-trading distortions
+- **Size**: 2,641 observations
 
 ## Methodology
 
-### Train / Validation / Test Split
+### Data Split
 
-The last 3 years of data (`t = 756` trading days) were used for modelling. The forecast target is **January 2023** (`h = 20` trading days). A validation set of 21 days was used for hyperparameter selection.
+The model uses the last 3 years of data (`t = 756` trading days). January 2023 (20 trading days) is the test period. A 21-day validation set sits between training and test.
 
 ### Hyperparameter Grid Search
 
-A grid search over `k ∈ {3, 5, 7}` and `p ∈ {10, 20, 40, 60}` (12 configurations total) was evaluated on the validation set using **MSE** as the selection criterion.
+All combinations of `k` in {3, 5, 7} and `p` in {10, 20, 40, 60} are evaluated on the validation set, giving 12 configurations ranked by MSE.
 
-### Ensemble Learning — Two Approaches
+### Two Ensemble Strategies
 
-| Approach | Description |
-|----------|-------------|
-| **Approach 1** (filtered) | Ensemble over the best-performing hyperparameter configurations on the validation set |
-| **Approach 2** (full) | Ensemble over all 12 configurations — no configuration is discarded |
+The same TSFKNN function is combined in two different ways:
 
-### Pareto Frontier
+**Strategy 1 (filtered):** Only the configurations that performed best on the validation set enter the ensemble. This is the classical approach.
 
-For the winning approach, the **Pareto frontier** on the (expected return, standard deviation) plane is drawn across forecast horizons. Each point on the frontier represents an efficient sell moment: risk-averse investors should prefer early days; risk-seeking investors can wait for higher expected returns.
+**Strategy 2 (full):** All 12 configurations are included, without discarding any. This captures a wider range of possible futures and turns out to work better.
+
+### From Forecast to Sell Decision: the Pareto Frontier
+
+Each forecast day has an expected return and a standard deviation. These two quantities trade off against each other: days with higher expected return often come with higher uncertainty.
+
+The Pareto frontier selects only the days where no other day is simultaneously better on both dimensions. These are the *efficient* sell moments: for a risk-averse investor, the earlier Pareto days are preferable; for a risk-seeking investor, the later ones offer higher potential upside. This transforms a statistical output into a concrete, investor-specific decision tool.
 
 ### Adaptive Re-Forecasting (Real-World Simulation)
 
-To simulate a realistic investment scenario where only partial ground truth is progressively revealed, the ensemble is updated after observing the first 7 actual test values: configurations producing systematically low forecasts are dropped, and TSFKNN is re-run on the remaining horizon.
+In practice, an investor does not wait passively. After the first 7 actual prices become available, the model is updated: configurations whose forecasts were systematically too low are removed, and the ensemble is re-run on the remaining 13 days. This simulates how a real decision-maker would adjust the strategy as new information arrives.
 
 ## Results
 
 | Approach | MSE |
 |----------|-----|
-| Approach 1 — filtered ensemble | 1.43 |
-| Approach 2 — full ensemble | 0.80 |
-| Approach 2 + adaptive re-forecast (days 8–20) | **0.06** |
+| Strategy 1, filtered ensemble | 1.43 |
+| Strategy 2, full ensemble | 0.80 |
+| Strategy 2 + adaptive re-forecast (days 8-20) | **0.06** |
 
-- **Pareto-optimal sell moments** (full ensemble, days 1–20): 1, 8, 9, 10, 14, 17
-- **Pareto-optimal sell moments** after adaptive re-forecast: 8, 9, 11, 12, 13, 16
+The full ensemble consistently outperforms the filtered one, showing that including more diverse forecasts improves accuracy even when some configurations performed poorly on validation.
 
-The full ensemble consistently outperforms the validation-filtered approach. The adaptive re-forecasting step dramatically improves accuracy once early observations are incorporated.
+Pareto-optimal sell days from the full ensemble: **1, 8, 9, 10, 14, 17**
+
+After adaptive re-forecasting: **8, 9, 11, 12, 13, 16**
+
+The re-forecast not only reduces error dramatically but also shifts the efficient frontier, changing which days are recommended. A risk-averse investor should target the earlier days; a risk-tolerant one can wait for the later ones.
 
 ## Tech Stack
 
@@ -79,12 +84,12 @@ The full ensemble consistently outperforms the validation-filtered approach. The
 
 ## Possible Extensions
 
-- Replace standard deviation with asymmetric risk measures (VaR, CVaR, EVaR) — more appropriate for financial loss quantification
-- Extend the nearest-neighbour search to multiple correlated stocks for cross-company pattern matching
-- Benchmark against classical time-series models (ARIMA) or deep learning approaches (LSTM, Transformer)
+- Replace standard deviation with asymmetric risk measures such as VaR, CVaR or EVaR, which penalise downside risk rather than symmetric deviation
+- Extend the nearest-neighbour search across multiple correlated stocks, to find historical analogues that may not exist in a single company's record
+- Benchmark against ARIMA models or recurrent neural networks such as LSTM
 
 ## Academic Context
 
-Master's dissertation — *Scienze Statistiche ed Economiche* (Statistics and Data Science track), University of Milano-Bicocca.
+Master's dissertation in Statistics and Data Science, University of Milano-Bicocca.
 
 Full title: *"The KNN Algorithm for Financial Time Series: a New Python Implementation"*
